@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { docsAPI, ApiError } from '../utils/api';
 
 const DocsListPage = () => {
   const [docs, setDocs] = useState([]);
@@ -8,6 +9,7 @@ const DocsListPage = () => {
 
   useEffect(() => {
     fetchDocs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchDocs = async () => {
@@ -15,35 +17,27 @@ const DocsListPage = () => {
       setLoading(true);
       setError('');
       
-      // TODO: Replace with actual API endpoint
-      // const response = await fetch('/api/docs');
-      // const data = await response.json();
+      const data = await docsAPI.getDocsList();
       
-      // For now, use mock data
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      // Transform backend data to match frontend expectations
+      const transformedDocs = data.map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        description: doc.description,
+        slug: doc.slug,
+        last_updated: doc.created_at, // Backend uses created_at
+        html_path: doc.html_path // Keep for potential future use
+      }));
       
-      // Mock data that matches your exact backend API response
-      const mockData = [
-        {
-          "id": "introduction",
-          "title": "Introduction to Data Engineering",
-          "description": "High-level overview of what data engineering covers and key concepts.",
-          "slug": "introduction",
-          "last_updated": "2025-12-10T10:15:00Z"
-        },
-        {
-          "id": "setup",
-          "title": "Setup & Installation",
-          "description": "How to clone the repo and install dependencies for the project.",
-          "slug": "setup",
-          "last_updated": "2025-12-10T10:20:00Z"
-        }
-      ];
-      
-      setDocs(mockData);
+      setDocs(transformedDocs);
     } catch (err) {
-      setError('Failed to fetch documentation. Please try again.');
       console.error('Error fetching docs:', err);
+      
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Failed to fetch documentation. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -160,6 +154,16 @@ const DocsListPage = () => {
         <div className="docs-header">
           <h1>📚 Documentation</h1>
           <p>Browse through your generated documentation ({docs.length} documents)</p>
+          {docs.length > 0 && (
+            <div className="docs-stats">
+              <span className="stat-badge">
+                📄 {docs.length} Documents
+              </span>
+              <span className="stat-badge">
+                🕒 Last updated: {formatDate(docs[0]?.last_updated)}
+              </span>
+            </div>
+          )}
         </div>
         
         <div className="docs-grid">

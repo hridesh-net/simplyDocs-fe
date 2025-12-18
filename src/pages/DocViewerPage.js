@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { docsAPI, ApiError } from '../utils/api';
 
 const DocViewerPage = () => {
   const { slug } = useParams();
@@ -9,6 +10,7 @@ const DocViewerPage = () => {
 
   useEffect(() => {
     fetchDoc();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   const fetchDoc = async () => {
@@ -16,50 +18,28 @@ const DocViewerPage = () => {
       setLoading(true);
       setError('');
       
-      // TODO: Replace with actual API endpoint
-      // const response = await fetch(`/api/docs/${slug}`);
-      // if (!response.ok) throw new Error('Failed to fetch documentation');
-      // const htmlContent = await response.text(); // Backend returns raw HTML
-      
-      // For now, use mock data that matches your backend format
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock HTML content that matches your backend response
-      const mockHtmlContent = slug === 'setup' 
-        ? `<h1>Setup & Installation</h1>
-           <p>This document explains how to clone the repository and install dependencies.</p>
-           <h2>Step 1: Clone</h2>
-           <p>Run <code>git clone https://github.com/username/repository.git</code></p>
-           <h2>Step 2: Install Dependencies</h2>
-           <p>Navigate to the project directory and run:</p>
-           <pre><code>npm install</code></pre>
-           <h2>Step 3: Start Development Server</h2>
-           <p>Run the following command to start the development server:</p>
-           <pre><code>npm start</code></pre>`
-        : `<h1>Introduction to Data Engineering</h1>
-           <p>High-level overview of what data engineering covers and key concepts.</p>
-           <h2>What is Data Engineering?</h2>
-           <p>Data engineering is the practice of designing and building systems for collecting, storing, and analyzing data at scale.</p>
-           <h2>Key Concepts</h2>
-           <ul>
-             <li><strong>Data Pipelines</strong> - Automated workflows for data processing</li>
-             <li><strong>ETL/ELT</strong> - Extract, Transform, Load processes</li>
-             <li><strong>Data Warehousing</strong> - Centralized data storage solutions</li>
-             <li><strong>Stream Processing</strong> - Real-time data processing</li>
-           </ul>`;
+      // Backend returns raw HTML content
+      const htmlContent = await docsAPI.getDoc(slug);
       
       // Create doc object with the HTML content
-      const mockDoc = {
+      const doc = {
         id: slug,
-        title: slug === 'setup' ? 'Setup & Installation' : 'Introduction to Data Engineering',
-        content: mockHtmlContent, // Raw HTML from backend
+        title: slug.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' '),
+        content: htmlContent, // Raw HTML from backend
         last_updated: new Date().toISOString()
       };
       
-      setDoc(mockDoc);
+      setDoc(doc);
     } catch (err) {
-      setError('Failed to fetch documentation content.');
       console.error('Error fetching doc:', err);
+      
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Failed to fetch documentation content.');
+      }
     } finally {
       setLoading(false);
     }
@@ -121,23 +101,30 @@ const DocViewerPage = () => {
       </div>
       
       <div className="container">
-        <div className="doc-nav">
-          <Link to="/docs" className="back-link">
+        <div className="mb-6">
+          <Link 
+            to="/docs" 
+            className="back-link"
+          >
             ← Back to Documentation
           </Link>
         </div>
         
-        <article className="doc-content">
-          <header className="doc-header">
-            <h1>{doc.title}</h1>
-            <div className="doc-meta">
-              <span>📄 {doc.id}</span>
-              <span>🕒 Last updated: {new Date(doc.last_updated).toLocaleDateString()}</span>
+        <article className="doc-content bg-primary border rounded-2xl shadow-xl p-8 transition">
+          <header className="border-b pb-6 mb-8">
+            <h1 className="text-4xl font-bold text-primary mb-4">{doc.title}</h1>
+            <div className="flex flex-wrap gap-4 text-sm text-secondary">
+              <span className="flex items-center gap-2">
+                📄 <span className="font-medium">Document ID:</span> {doc.id}
+              </span>
+              <span className="flex items-center gap-2">
+                🕒 <span className="font-medium">Last updated:</span> {new Date(doc.last_updated).toLocaleDateString()}
+              </span>
             </div>
           </header>
           
           <div 
-            className="doc-body"
+            className="doc-content-wrapper"
             dangerouslySetInnerHTML={{ __html: doc.content }}
           />
         </article>
